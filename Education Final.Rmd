@@ -1,0 +1,37 @@
+---
+title: "Education 240 Final Project"
+subtitle: "Professor Kisha Daniels"
+author: "Matthew Cui"
+date: "3/31/2020"
+output: pdf_document
+---
+
+In this project, I will be using statistical testing method, data visualization techniques, and content covered in lectures and readings to carry out an analysis on this dataset collected and made available by the University of California, Irvine Department of Machine Learning.
+
+First, let's read and load the data. In this chunk, I will also load the libraries that I will need to perform the necessary analysis used in the rest of this report.
+```{r read-data, echo = FALSE}
+schools <- read.csv("student-por.csv")
+
+library(tidyverse)
+```
+
+This dataset has 649 rows and 33 columns, meaning that the researchers took a sample of 649 students and collected information about them on 33 different variables. The original data was titled `Student Alcohol Consumption` as it categorizes students into different consumption levels from 1-5 both on workdays and weekends, as shown by the variables `dalc` and `walc` respectively. 
+
+However, this dataset also contains valuable insights into the students' academic performance as it contains their grades from year 1 to 3, shown in the variables `g1`, `g2`, and `g3` respectively. I will be creating a series of visualizations using this information and attempting to explain the trends I see using information learned in class and in my readings.
+
+The first step of data wrangling I need to perform is converting the categorical variables into factors. Factors are essentially different levels of a categorical variable. I also changed the other numerical categorical variables into factors as they are ordinal, meaning the ranking matters, but it doesn't contain any explicit information numerically. Essentially, the numbers are only meaningful in relative to one another.
+
+```{r factors-conversion}
+schools <- schools %>% 
+  mutate_if(is.character, as.factor) %>% 
+  mutate_at(vars(Medu,
+                 Fedu,
+                 traveltime,
+                 studytime,
+                 famrel,
+                 freetime,
+                 goout,
+                 Dalc,
+                 Walc,
+                 health), factor)
+```
