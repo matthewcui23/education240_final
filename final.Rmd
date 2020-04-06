@@ -4,6 +4,8 @@ subtitle: "Professor Kisha Daniels"
 author: "Matthew Cui"
 date: "3/31/2020"
 output: pdf_document
+toc: true
+theme: united
 ---
 
 # 1. Introduction
@@ -11,10 +13,12 @@ output: pdf_document
 In this project, I will be using statistical testing method, data visualization techniques, and content covered in lectures and readings to carry out an analysis on this dataset collected and made available by the University of California, Irvine Department of Machine Learning.
 
 First, let's read and load the data. In this chunk, I will also load the libraries that I will need to perform the necessary analysis used in the rest of this report.
-```{r read-data, echo = FALSE}
+```{r read-data}
 schools <- read.csv("student-por.csv")
 
 library(tidyverse)
+library(infer)
+library(broom)
 ```
 
 This dataset has 649 rows and 33 columns, meaning that the researchers took a sample of 649 students and collected information about them on 33 different variables. The original data was titled `Student Alcohol Consumption` as it categorizes students into different consumption levels from 1-5 both on workdays and weekends, as shown by the variables `dalc` and `walc` respectively. 
@@ -23,19 +27,84 @@ However, this dataset also contains valuable insights into the students' academi
 
 The first step of data wrangling I need to perform is converting the categorical variables into factors. Factors are essentially different levels of a categorical variable. I also changed the other numerical categorical variables into factors as they are ordinal, meaning the ranking matters, but it doesn't contain any explicit information numerically. Essentially, the numbers are only meaningful in relative to one another.
 
+## 1.1 Manipulating variables
+
 ```{r factors-conversion}
 schools <- schools %>% 
-  mutate_if(is.character, as.factor) %>% 
-  mutate_at(vars(Medu,
-                 Fedu,
-                 traveltime,
-                 studytime,
-                 famrel,
-                 freetime,
-                 goout,
-                 Dalc,
-                 Walc,
-                 health), factor)
+  mutate_if(is.character, as.factor)
+  # mutate_at(vars(Medu,
+  #                Fedu,
+  #                traveltime,
+  #                studytime,
+  #                famrel,
+  #                freetime,
+  #                goout,
+  #                Dalc,
+  #                Walc,
+  #                health), factor)
 ```
 
-# 2. Data visualizations and 
+
+
+## 2 The role of play
+
+The first concept I want to investigate is Piaget's developmental theory on play. To do this, I will create a linear regression model of how the explanatory variables `goout`, `freetime` (categorical variables with levels of frequency from 1-5), and `activities` (binary variable of yes/no to extracirricculars) affect the response variable `g3` (final school grade).
+
+### 2.1 Data
+
+```{r play}
+lm_g3_play <- lm(G3 ~ goout + freetime + activities, data = schools)
+
+tidy(lm_g3_play) %>% 
+  select(term, estimate)
+```
+
+### 2.2 Interpretation
+
+From this, we get a linear model in the form of $Y = m_{1}X_{1} + m_{2}X_{2} + m_{3}X_{3} + c$. The linear model from this regression is `G3 = 13.3 - 0.150 * goout - 0.357 * freetime + 0.530 * activities`.
+
+By interpreting the signs of the coefficients, we see that both going out and having free time negatively correlates with the final course grade. Essentially, if an individual has a free time score of 5, his final course grade would be calculated by multiplying 5 with -0.357. The intercept means that, given all other variable values to be 0, would be 13.3 out of 20. This means that if a student had no activities nor free time and doesn't go out, the average score in that group would be 13.3.
+
+Extracurricular activities, on the other hand, has the only positive coefficient in the model, suggesting a positive correlation between `G3` and `activities`. This means that when a student has extracirricular activities, their predicted final course grades are to increase by 0.530 points on average.
+
+### 2.3 Discussion
+
+After understanding how different attributes affect this sample of students, we can now discuss how this supports or challenges Piaget's theories.
+
+Scales, et al. (1991) defined play as "that absorbing activity in which healthy young children participate with enthusiasm and abandon," whereas Csikszentmihalyi (1981) described play as "a subset of life..., an arrangement in which one can practice behavior without dreading its consequence." In both cases, these researchers argue that play enables the learner to take on and understand simulated roles that they normally cannot be to expand their knowledge in different circumstances.
+
+One reason, therefore, that could explain the effects of the variables in the model is the nature of the students' play. When they are engaged in extracurricular activities, it's often endorsed by the school, suggesting that there is a series of guidance provided by more knowledgeable others (MKO), whether that be a teacher, or older students. Their guidance is crucial in these students' learning of new knowledge, especially those that they have not mastered on their own. On the other hand, when students have `freetime`, or `goout`, this time might not be used productively and constructively to positively contribute towards their final grade.
+
+
+## 3. Does quality of family relationships affect academic performance?
+
+We have previously discussed how every student faces a different challenge. Whether it's suffering from physical or mental disabilities or financial struggles, these factors could all affect a student's academic performance in school. One other factor that I will be investigating is whether the quality of relationships a student has with their family affect their academic performance. I will do this through simlulation-based hypothesis testing.
+
+### 3.1 Formalizing research hypothesis and operationalizing variables
+
+First, we have to compute a mean final score in this sample of students. As per the code below, the average final score is 11.9.
+```{r avg-final}
+schools %>% 
+  summarize(mean_final = mean(G3))
+```
+
+Next, we have to define what counts as having a good relationship with family. Since the data ranks these relationships from 1-5, I will consider a level of 4 and above to be having quality relationships.
+
+Now that we have our conditions, we can write the hypothesis in words:
+
+Null hypothesis: Students with good relationships with families won't perform better in school.
+
+Alternative hypothesis: Students with good relationships with families will perform better in school.
+
+And in symbols:
+
+$H_0: \mu = 11.9$
+
+$H_1: \mu > 11.9$
+where $\mu$ is the sample mean.
+
+
+### 3.2 Simulating the sampling process
+
+
+
