@@ -1,10 +1,12 @@
 ---
 title: "Education 240 Final Project"
-subtitle: "Professor Kisha Daniels"
 author: "Matthew Cui"
 date: "3/31/2020"
-output: pdf_document
-toc: true
+output:
+  html_document:
+    df_print: paged
+subtitle: Professor Kisha Daniels
+toc: yes
 theme: united
 ---
 
@@ -46,11 +48,11 @@ schools <- schools %>%
 
 
 
-## 2 The role of play
+# 2 The role of play
 
 The first concept I want to investigate is Piaget's developmental theory on play. To do this, I will create a linear regression model of how the explanatory variables `goout`, `freetime` (categorical variables with levels of frequency from 1-5), and `activities` (binary variable of yes/no to extracirricculars) affect the response variable `g3` (final school grade).
 
-### 2.1 Data
+## 2.1 Data
 
 ```{r play}
 lm_g3_play <- lm(G3 ~ goout + freetime + activities, data = schools)
@@ -59,7 +61,7 @@ tidy(lm_g3_play) %>%
   select(term, estimate)
 ```
 
-### 2.2 Interpretation
+## 2.2 Interpretation
 
 From this, we get a linear model in the form of $Y = m_{1}X_{1} + m_{2}X_{2} + m_{3}X_{3} + c$. The linear model from this regression is `G3 = 13.3 - 0.150 * goout - 0.357 * freetime + 0.530 * activities`.
 
@@ -67,7 +69,7 @@ By interpreting the signs of the coefficients, we see that both going out and ha
 
 Extracurricular activities, on the other hand, has the only positive coefficient in the model, suggesting a positive correlation between `G3` and `activities`. This means that when a student has extracirricular activities, their predicted final course grades are to increase by 0.530 points on average.
 
-### 2.3 Discussion
+## 2.3 Discussion
 
 After understanding how different attributes affect this sample of students, we can now discuss how this supports or challenges Piaget's theories.
 
@@ -76,35 +78,101 @@ Scales, et al. (1991) defined play as "that absorbing activity in which healthy 
 One reason, therefore, that could explain the effects of the variables in the model is the nature of the students' play. When they are engaged in extracurricular activities, it's often endorsed by the school, suggesting that there is a series of guidance provided by more knowledgeable others (MKO), whether that be a teacher, or older students. Their guidance is crucial in these students' learning of new knowledge, especially those that they have not mastered on their own. On the other hand, when students have `freetime`, or `goout`, this time might not be used productively and constructively to positively contribute towards their final grade.
 
 
-## 3. Does quality of family relationships affect academic performance?
+# 3. Does quality of family relationships affect academic performance?
 
 We have previously discussed how every student faces a different challenge. Whether it's suffering from physical or mental disabilities or financial struggles, these factors could all affect a student's academic performance in school. One other factor that I will be investigating is whether the quality of relationships a student has with their family affect their academic performance. I will do this through simlulation-based hypothesis testing.
 
-### 3.1 Formalizing research hypothesis and operationalizing variables
+## 3.1 Formalizing research hypothesis and operationalizing variables
 
-First, we have to compute a mean final score in this sample of students. As per the code below, the average final score is 11.9.
-```{r avg-final}
-schools %>% 
-  summarize(mean_final = mean(G3))
+Our research question can be boiled down to this: Does having a good relationship with family increase academic performance? In other words, the null hypothesis is to prove that academic performance measured by the variable `G3` and family relationship are independent events. The alternative hypothesis will be that the two variables are dependent. 
+
+To do this we will simulate by permutation. We will keep the same outcomes in response variable (grades), and permute the 'treatment' group, also known as the explanatory group, which in this case is family relationships. We will have to wrangle some data to change the target variables into categorical ones with two levels. 
+
+```{r permute}
+famsuccess_schools <- schools %>% 
+  mutate(categorized_famrel = case_when(
+    famrel >= 4 ~ "high-quality",
+    famrel < 4 ~ "low-quality"
+  )) %>% 
+  mutate(categorized_g3 = case_when(
+    G3 >= 12 ~ "above average",
+    G3 < 12 ~ "below average"
+  )) %>% 
+  mutate(categorized_famrel = as.factor(categorized_famrel)) %>% 
+  mutate(G3 = as.factor(G3))
 ```
 
-Next, we have to define what counts as having a good relationship with family. Since the data ranks these relationships from 1-5, I will consider a level of 4 and above to be having quality relationships.
+We have changed `famrel` into `categorized_famrel` with levels of `high-quality` and `low-quality`. Any relationships marked with a level 4 or above was deemed `high-quality`. 
 
-Now that we have our conditions, we can write the hypothesis in words:
+Similarly, `G3` has been changed to `categorized_g3`, with students changed to whether they are above average or below average. 
 
-Null hypothesis: Students with good relationships with families won't perform better in school.
+Next, we calculate the observed difference of proportion between above average students in two different groups of family relationships.
 
-Alternative hypothesis: Students with good relationships with families will perform better in school.
+```{r}
+p_hat_diff <- famsuccess_schools %>%
+  count(categorized_famrel, categorized_g3) %>% 
+  group_by(categorized_famrel) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(categorized_g3 == "above average") %>%
+  pull(p_hat) %>%
+  diff()
 
-And in symbols:
+p_hat_diff
+```
 
-$H_0: \mu = 11.9$
+## 3.2 Simulating the sampling process
 
-$H_1: \mu > 11.9$
-where $\mu$ is the sample mean.
+```{r}
+famgrade_dist <- famsuccess_schools %>% 
+  specify(response = categorized_g3, explanatory = categorized_famrel, 
+          success = "above average") %>% 
+  hypothesize(null = "independence") %>% 
+  generate(reps = 2500, type = "permute") %>% 
+  calculate(stat = "diff in props",
+            order = c("low-quality", "high-quality"))
+
+```
 
 
-### 3.2 Simulating the sampling process
+Since the p-value is the probability of observing our results or more extreme) if the null hypothesis were in fact true, we can visualize the p-value by plotting the observed difference and highlighting the areas that's greater than the value. The p-value can also be calculated directly to obtain as a figure. Unfortunately, the p-value is extremely high at `98.5%`, suggesting that there is no statistical significance in this causal relationship between academic performance and family relationships.
+
+```{r}
+visualize(famgrade_dist) +
+  shade_p_value(obs_stat = -0.107, direction = "greater")
+famgrade_dist %>%
+  filter(stat >= -0.107) %>%
+  summarise(p_value = n() / nrow(famgrade_dist))
+```
 
 
+## 3.3 Alternative method of investigating causes for academic performance
 
+This method invovles the use of linear regression as discussed in Section 2. Instead of only picking two variables, however, we create a linear model that has one response variable, `G3`, and a lot of explanatory variables. Within these explanatory variables, we aim to find what combination of them has the highest adjusted $R^2$ value (similar to $R^2$ but takes into account of the number of explanatory variables).
+
+```{r step-lm}
+lm_full <- lm(G3 ~ school + G1 + studytime + higher + internet + famrel + 
+              health + absences, data = schools) # creating model
+```
+
+Once the model has been created, the function `step()` automates a backward-selection process and ends the output with the combination of variables with the highest adjusted $R^2$ value. It essentially brute-forces the process by starting with the full model, records the $adj. R^2$, removes one variable, determines whether the $adj R^2$ is higher without that variable. If it is higher, the current model becomes the 'best model', until removing another variable yields a higher value.  
+
+```{r model-selection}
+best_model <- step(lm_full) # using the step function
+tidy(best_model) # displaying in a tidy manner
+```
+
+From the output of `best_model`, we get a linear model of 
+
+\center `final period grade = 1.43 - 0.336 * MS + 0.931 * first period grade + 0.528 * higher - 0.138 * health` \center
+
+Comparing this to the full model we started with, the variables `studytime`, `internet`, `famrel`, and `absences` were all discarded from the best model. From the code below, we see that approximately `68.9%` of the variability in the response variable `G3` can be explained by the response variables.
+
+```{r adj-r}
+glance(best_model) %>% 
+  select(adj.r.squared)
+```
+
+It is indeed a bit awkward that the variable that I hypothesized in the beginning of this section will directly cause variances in the final course grade did not even make this final correlational model. This goes to say that, at least in this sample, the quality of relationships with family does not play a relatively big role in affecting students' final academic performances. This also explains why the p-value we obtained in the previous statistical test is so ridiculously high.
+
+
+## 3.4 Discussion
